@@ -1,5 +1,5 @@
-// Western canon: the original exploration dataset. Schema: see data/_schema.js.
-window.DATASETS.canon = {
+// Western canon: the original exploration dataset. Schema: see data/schema.js.
+(window.DATASETS ||= {}).canon = {
   title: "Great Minds",
   // Colour groups. Authors without an explicit `group` take the first whose `until` exceeds their floruit.
   groups: [

@@ -1,6 +1,6 @@
 // Romance: from Richardson and Austen through the Brontës and the gothic, to the 1970s historical-romance boom.
 // Many 20th-c. links are genre lineage (publisher positioning, acknowledged models) rather than formal citation.
-window.DATASETS.romance = {
+(window.DATASETS ||= {}).romance = {
   title: "Romance",
   groups: [
     { key: "georgian",  label: "Georgian & Regency",  fill: "#fef3c7", stroke: "#d97706" },

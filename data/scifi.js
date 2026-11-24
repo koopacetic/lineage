@@ -1,6 +1,6 @@
 // Science-fiction tropes: utopias and Frankenstein through techno-futurism, Cold War
 // anti-communist paranoia, dystopia, cyberpunk and solarpunk. Concept lineage, not people.
-window.DATASETS.scifi = {
+(window.DATASETS ||= {}).scifi = {
   title: "Sci-fi tropes",
   concepts: true,
   groups: [

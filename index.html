@@ -164,7 +164,7 @@
   <aside id="side"></aside>
 </main>
 
-<script src="data/_schema.js"></script>
+<script src="data/schema.js"></script>
 <script src="data/founders.js"></script><script src="data/founders.expanded.js"></script>
 <script src="data/stoics.js"></script><script src="data/stoics.expanded.js"></script>
 <script src="data/romance.js"></script><script src="data/romance.expanded.js"></script>
@@ -226,8 +226,10 @@ function applyTheme() {
   initMermaid();
 }
 
-const PEOPLE = ["founders", "stoics", "romance", "canon"];
-const CONCEPTS = ["tropes", "scifi", "music"];
+// Only offer datasets whose files actually loaded (a missing file shouldn't break the page).
+const PEOPLE = ["founders", "stoics", "romance", "canon"].filter(k => window.DATASETS?.[k]);
+const CONCEPTS = ["tropes", "scifi", "music"].filter(k => window.DATASETS?.[k]);
+window.EXPANDED ||= {};
 const state = { dataset: "founders", size: "small", view: "network", focus: null, dir: "both", depth: 2, zoom: 1, showWorks: true };
 let D, byId;   // current (merged) dataset and id → node lookup
 let nodeEls = {};   // id → rendered <g> for the current diagram

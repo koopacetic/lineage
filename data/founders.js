@@ -1,5 +1,5 @@
 // American founders: the political & philosophical sources they read and cited, and who read them.
-window.DATASETS.founders = {
+(window.DATASETS ||= {}).founders = {
   title: "Founding Fathers",
   groups: [
     { key: "ancient",  label: "Ancient sources",              fill: "#fef3c7", stroke: "#d97706" },

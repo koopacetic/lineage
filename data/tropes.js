@@ -1,6 +1,6 @@
 // Romance tropes: concept lineage from courtly love and fairy tales to romantasy and BookTok.
 // Nodes are tropes/subgenres; `born` = when it emerged, `died` = when it faded (null = still going).
-window.DATASETS.tropes = {
+(window.DATASETS ||= {}).tropes = {
   title: "Romance tropes",
   concepts: true,
   groups: [

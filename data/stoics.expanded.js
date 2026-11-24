@@ -1,6 +1,6 @@
 // Stoics — expanded: the full Greek succession, rivals and critics, Roman Stoic opposition,
 // Church fathers who carried Seneca through the Middle Ages, humanists, and the modern revival.
-window.EXPANDED.stoics = {
+(window.EXPANDED ||= {}).stoics = {
   groups: [
     { key: "rival",     label: "Rivals & critics",          fill: "#f1f5f9", stroke: "#64748b" },
     { key: "christian", label: "Church fathers & medieval", fill: "#e7e5e4", stroke: "#78716c" },

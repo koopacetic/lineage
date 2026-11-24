@@ -1,5 +1,5 @@
 // Stoic philosophy: from the Cynics through the Roman Stoa, the neo-Stoics, and the modern revival.
-window.DATASETS.stoics = {
+(window.DATASETS ||= {}).stoics = {
   title: "Stoics",
   groups: [
     { key: "precursor", label: "Socratics & Cynics",          fill: "#e0e7ff", stroke: "#6366f1" },

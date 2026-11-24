@@ -1,6 +1,6 @@
 // Sci-fi tropes — expanded: feminist & libertarian SF, Soviet SF, alternate history, kaiju,
 // first contact, ecology, biopunk, cli-fi, the Singularity, virtual worlds and death games.
-window.EXPANDED.scifi = {
+(window.EXPANDED ||= {}).scifi = {
   authors: [
     { id: "libertarian",  name: "Libertarian SF",          born: 1938, died: null, group: "pulp",    works: ["Anthem", "The Moon Is a Harsh Mistress"] },
     { id: "generation",   name: "Generation ships & big dumb objects", born: 1941, died: null, group: "pulp", works: ["Universe (Heinlein)", "Rendezvous with Rama"] },

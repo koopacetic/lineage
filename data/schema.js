@@ -18,7 +18,7 @@
 // }
 // window.EXPANDED[key] = { authors, links, groups?, ticks?, gap?, periods?, picks? }
 //   authors/links/groups are appended; ticks/gap/periods/picks replace the base values.
-window.DATASETS = {};
-window.EXPANDED = {};
+window.DATASETS ||= {};
+window.EXPANDED ||= {};
 window.range = (from, to, step) => { const r = []; for (let y = from; y <= to; y += step) r.push(y); return r; };
 window.centuries = (from, to) => range(from, to, 100);

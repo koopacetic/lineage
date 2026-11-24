@@ -1,6 +1,6 @@
 // Great Minds — expanded: more Greek & Roman sources, the Islamic & scholastic bridge across the gap,
 // Renaissance humanists, the Reformation, and the scientific revolution. Merged onto data/canon.js.
-window.EXPANDED.canon = {
+(window.EXPANDED ||= {}).canon = {
   authors: [
     { id: "hesiod",     name: "Hesiod",              born: -750, died: -650, approx: true, works: ["Works and Days", "Theogony"] },
     { id: "parmenides", name: "Parmenides",          born: -515, died: -450, approx: true, works: ["On Nature"] },

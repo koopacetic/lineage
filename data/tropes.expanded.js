@@ -1,6 +1,6 @@
 // Romance tropes — expanded: fae folklore, love triangles, screwball rom-com, time travel,
 // shifters & omegaverse, dark & monster romance, Dramione and the Kindle Unlimited economy.
-window.EXPANDED.tropes = {
+(window.EXPANDED ||= {}).tropes = {
   authors: [
     { id: "faefolk",      name: "Fae folklore",               born: 1549, died: null, approx: true, group: "folk",    works: ["Tam Lin", "A Midsummer Night's Dream"] },
     { id: "lovetriangle", name: "Love triangle",              born: 1180, died: null, approx: true, group: "medieval", works: ["Lancelot–Guinevere–Arthur", "Twilight", "The Hunger Games"] },

@@ -1,7 +1,7 @@
 // Romance — expanded: the novel's prehistory (Shakespeare, Behn, Haywood), the gothic,
 // Victorian heirs, swashbucklers behind Heyer, Mills & Boon / Harlequin, and the late-'70s Avon wave.
 // Several 20th-c. links are genre lineage rather than documented influence; the notes say so.
-window.EXPANDED.romance = {
+(window.EXPANDED ||= {}).romance = {
   groups: [
     { key: "early",     label: "Before the novel",        fill: "#f1f5f9", stroke: "#64748b" },
     { key: "category",  label: "Mills & Boon / Harlequin", fill: "#ede9fe", stroke: "#7c3aed" },

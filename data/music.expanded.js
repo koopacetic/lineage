@@ -1,6 +1,6 @@
 // Modern music — expanded: the chorale, ballads and brass bands; rock's branches; jazz's later
 // forms; industrial → EBM; global club styles; and internet-era genres.
-window.EXPANDED.music = {
+(window.EXPANDED ||= {}).music = {
   groups: [
     { key: "rock",   label: "Rock & its offshoots", fill: "#f1f5f9", stroke: "#475569" },
     { key: "global", label: "Global club styles",   fill: "#ffedd5", stroke: "#ea580c" },

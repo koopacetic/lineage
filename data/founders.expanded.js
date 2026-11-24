@@ -1,6 +1,6 @@
 // Founding Fathers — expanded: adds the founders' wider reading, colonial preachers & lawyers,
 // more founders, transatlantic radicals, and 19th-c. heirs. Merged onto data/founders.js.
-window.EXPANDED.founders = {
+(window.EXPANDED ||= {}).founders = {
   groups: [
     { key: "reform",   label: "Medieval & Reformation", fill: "#e7e5e4", stroke: "#78716c" },
     { key: "colonial", label: "Colonial Americans",     fill: "#ffedd5", stroke: "#ea580c" },

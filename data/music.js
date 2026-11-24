@@ -1,6 +1,6 @@
 // Modern music: from church hymns, spirituals and West African traditions through blues and jazz,
 // soul and funk, disco and Kraftwerk, to house, techno and club music. Concept lineage, not people.
-window.DATASETS.music = {
+(window.DATASETS ||= {}).music = {
   title: "Modern music",
   concepts: true,
   groups: [
