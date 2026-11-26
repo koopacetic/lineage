@@ -16,8 +16,17 @@
 //             // kind: "builds" (drew on) | "critiques" (argued against) | "transmits" (preserved/translated/carried)
 //   picks:    { "List name": [ids...] },   // curated "key players" lists (ids missing in Small are skipped)
 // }
-// window.EXPANDED[key] = { authors, links, groups?, ticks?, gap?, periods?, picks? }
+// window.EXPANDED[key] = { authors, links, groups?, ticks?, gap?, periods?, picks?, enrich? }
 //   authors/links/groups are appended; ticks/gap/periods/picks replace the base values.
+// window.XXL[key] = same shape, layered on top of Expanded when "XXL" is selected. The XXL button is
+//   disabled for datasets without one (currently only romance and tropes have it).
+//
+// Optional node fields (shown in the side panel when the node is focused):
+//   blurb:   one or two sentences of context
+//   reads:   [[label, title], ...]  recommended reading, best first (replaces `works` in the panel)
+//   tropes:  [ids in the tropes dataset]   — on romance authors; rendered as cross-links
+//   authors: [ids in the romance dataset]  — on tropes; rendered as cross-links
+// enrich: { id: { blurb?, reads?, tropes?, authors? } } adds these fields to nodes from lower layers.
 window.DATASETS ||= {};
 window.EXPANDED ||= {};
 window.range = (from, to, step) => { const r = []; for (let y = from; y <= to; y += step) r.push(y); return r; };

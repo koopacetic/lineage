@@ -40,6 +40,7 @@
   .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
   .seg button { font: inherit; padding: 4px 11px; border: 0; border-right: 1px solid var(--line); background: var(--panel); cursor: pointer; color: var(--ink); }
   .seg button:last-child { border-right: 0; }
+  .seg button:disabled { opacity: .35; cursor: not-allowed; }
   .seg button[aria-pressed="true"] { background: var(--ink); color: var(--panel); }
   .ds button[aria-pressed="true"] { background: var(--accent); color: #fff; }
   .controls button, .controls select { font: inherit; padding: 4px 9px; border: 1px solid var(--line); background: var(--panel); border-radius: 6px; cursor: pointer; color: var(--ink); }
@@ -73,6 +74,10 @@
   aside ul.links li { padding: 4px 0; border-bottom: 1px dashed var(--line); }
   aside a { color: var(--ink); font-weight: 600; cursor: pointer; text-decoration: underline; text-decoration-color: var(--line); }
   aside .note { color: var(--muted); font-size: 12px; display: block; }
+  aside .blurb { margin: 8px 0 0; }
+  aside ul.reads { list-style: none; padding: 0; margin: 0; }
+  aside ul.reads li { padding: 3px 0; border-bottom: 1px dashed var(--line); font-style: italic; }
+  aside ul.reads .rk { display: block; font-style: normal; font-size: 11px; color: var(--muted); }
   .kind { font-size: 10px; padding: 1px 5px; border-radius: 4px; margin-left: 4px; color: #fff; vertical-align: 1px; white-space: nowrap; }
   :root[data-theme="dark"] .kind { color: #111; }
   :root[data-theme="dark"] #stage, :root[data-theme="dark"] aside { scrollbar-color: #3f3f46 #1c1c21; }
@@ -124,6 +129,7 @@
     <div class="seg" id="sizes" role="group" aria-label="Dataset size">
       <button data-size="small"><span class="long">Small</span><span class="short">S</span></button>
       <button data-size="expanded"><span class="long">Expanded</span><span class="short">XL</span></button>
+      <button data-size="xxl">XXL</button>
     </div>
     <button id="share" title="Copy a link that opens with these settings">🔗<span class="long"> Share</span></button>
     <button id="theme" title="Colour theme: auto / light / dark"></button>
@@ -167,9 +173,9 @@
 <script src="data/schema.js"></script>
 <script src="data/founders.js"></script><script src="data/founders.expanded.js"></script>
 <script src="data/stoics.js"></script><script src="data/stoics.expanded.js"></script>
-<script src="data/romance.js"></script><script src="data/romance.expanded.js"></script>
+<script src="data/romance.js"></script><script src="data/romance.expanded.js"></script><script src="data/romance.xxl.js"></script>
 <script src="data/canon.js"></script><script src="data/canon.expanded.js"></script>
-<script src="data/tropes.js"></script><script src="data/tropes.expanded.js"></script>
+<script src="data/tropes.js"></script><script src="data/tropes.expanded.js"></script><script src="data/tropes.xxl.js"></script>
 <script src="data/scifi.js"></script><script src="data/scifi.expanded.js"></script>
 <script src="data/music.js"></script><script src="data/music.expanded.js"></script>
 <script type="module">
@@ -230,14 +236,17 @@ function applyTheme() {
 const PEOPLE = ["founders", "stoics", "romance", "canon"].filter(k => window.DATASETS?.[k]);
 const CONCEPTS = ["tropes", "scifi", "music"].filter(k => window.DATASETS?.[k]);
 window.EXPANDED ||= {};
+window.XXL ||= {};
+const hasXxl = key => !!window.XXL[key];
 const state = { dataset: "founders", size: "small", view: "network", focus: null, dir: "both", depth: 2, zoom: 1, showWorks: true };
 let D, byId;   // current (merged) dataset and id → node lookup
 let nodeEls = {};   // id → rendered <g> for the current diagram
 
 // ---------- dataset assembly ----------
-function buildDataset(key, size) {
-  const b = window.DATASETS[key], e = size === "expanded" ? window.EXPANDED[key] : null;
-  if (!e) return b;
+// Layers stack: Small, then Expanded on top, then XXL on top of both.
+// A layer's `enrich` ({ id: {blurb, tropes, reads, …} }) adds fields to nodes from lower layers.
+function layer(b, e) {
+  const enrich = e.enrich || {};
   return {
     ...b,
     ticks: e.ticks || b.ticks,
@@ -245,10 +254,19 @@ function buildDataset(key, size) {
     periods: e.periods || b.periods,
     picks: e.picks || b.picks,
     groups: [...b.groups, ...(e.groups || [])],
-    authors: [...b.authors, ...e.authors],
-    links: [...b.links, ...e.links],
+    authors: [...b.authors.map(a => enrich[a.id] ? { ...a, ...enrich[a.id] } : a), ...(e.authors || [])],
+    links: [...b.links, ...(e.links || [])],
   };
 }
+function buildDataset(key, size) {
+  let d = window.DATASETS[key];
+  if (size !== "small" && window.EXPANDED[key]) d = layer(d, window.EXPANDED[key]);
+  if (size === "xxl" && window.XXL[key]) d = layer(d, window.XXL[key]);
+  return d;
+}
+// Cross-links between datasets (romance author ↔ trope) always resolve against the fullest version.
+const fullCache = {};
+const fullNode = (ds, id) => (fullCache[ds] ||= Object.fromEntries(buildDataset(ds, "xxl").authors.map(a => [a.id, a])))[id];
 
 // ---------- wording (people vs. concepts) ----------
 const words = () => D.concepts
@@ -263,7 +281,7 @@ const groupOf = a => a.group || D.groups.find(g => floruit(a) < g.until).key;
 function lifespan(a) {
   const c = a.approx ? "c. " : "";
   if (D.concepts) return `${c}${a.born < 0 ? -a.born + " BCE" : a.born}–${a.died == null ? "now" : a.died}`;
-  if (a.died == null) return `b. ${a.born}`;
+  if (a.died == null) return `b. ${c}${a.born}`;
   if (a.died < 0) return `${c}${-a.born}–${-a.died} BCE`;
   if (a.born < 0) return `${c}${-a.born} BCE–${a.died} CE`;
   return `${c}${a.born}–${a.died}`;
@@ -647,14 +665,29 @@ function renderSide() {
     const row = ([, , kind, note], other) =>
       `<li><a data-id="${other}">${html(byId[other].name)}</a><span class="kind ${kind}">${W.kind[kind]}</span>${note ? `<span class="note">${html(note)}</span>` : ""}</li>`;
     const ins = D.links.filter(l => l[1] === a.id), outs = D.links.filter(l => l[0] === a.id);
+    // Chips that jump to a node in another dataset (at XXL, where the cross-links live).
+    const xref = (title, ds, ids) => {
+      const have = (ids || []).filter(id => fullNode(ds, id));
+      return have.length ? `<h3>${title}</h3><div class="chips">${have.map(id =>
+        `<button data-xds="${ds}" data-xid="${id}">${html(fullNode(ds, id).name)}</button>`).join("")}</div>` : "";
+    };
     top = `<h2>${html(a.name)}</h2><div class="dates">${lifespan(a)}</div>
-      ${a.works.length ? `<ol class="workslist">${a.works.map(w => `<li>${html(w)}</li>`).join("")}</ol>` : ""}
+      ${a.blurb ? `<p class="blurb">${html(a.blurb)}</p>` : ""}
+      ${a.reads?.length ? `<h3>Recommended reading</h3><ul class="reads">${a.reads.map(([k, t]) =>
+          `<li><span class="rk">${html(k)}</span>${html(t)}</li>`).join("")}</ul>`
+        : a.works.length ? `<ol class="workslist">${a.works.map(w => `<li>${html(w)}</li>`).join("")}</ol>` : ""}
+      ${xref("Known for (tropes)", "tropes", a.tropes)}
+      ${xref("Key authors", "romance", a.authors)}
       <h3>${W.up} (${ins.length})</h3><ul class="links">${ins.map(l => row(l, l[0])).join("") || "<li class='note'>—</li>"}</ul>
       <h3>${W.down} (${outs.length})</h3><ul class="links">${outs.map(l => row(l, l[1])).join("") || "<li class='note'>—</li>"}</ul>
       <details><summary><h3 style="display:inline">Key players</h3></summary>${keyPlayers()}</details>`;
   }
   side.innerHTML = top + legend;
   side.querySelectorAll("[data-id]").forEach(x => x.addEventListener("click", () => select(x.dataset.id)));
+  side.querySelectorAll("[data-xds]").forEach(x => x.addEventListener("click", () => {
+    setDataset(x.dataset.xds, "xxl");
+    select(x.dataset.xid);
+  }));
 }
 
 // ---------- state changes ----------
@@ -670,6 +703,7 @@ function syncDepth() {
   document.getElementById("depthDown").disabled = !state.focus || state.depth <= 1;
 }
 function setDataset(key, size = state.size) {
+  if (size === "xxl" && !hasXxl(key)) size = "expanded";   // XXL only exists for some datasets
   state.dataset = key; state.size = size;
   D = buildDataset(key, size);
   byId = Object.fromEntries(D.authors.map(a => [a.id, a]));
@@ -683,7 +717,14 @@ function setDataset(key, size = state.size) {
 function markPressed() {
   document.querySelectorAll(".ds button").forEach(b => b.setAttribute("aria-pressed", b.dataset.ds === state.dataset));
   document.getElementById("dsSelect").value = state.dataset;
-  document.querySelectorAll("#sizes button").forEach(b => b.setAttribute("aria-pressed", b.dataset.size === state.size));
+  document.querySelectorAll("#sizes button").forEach(b => {
+    b.setAttribute("aria-pressed", b.dataset.size === state.size);
+    if (b.dataset.size === "xxl") {
+      b.disabled = !hasXxl(state.dataset);
+      b.title = b.disabled ? "XXL is only available for Romance and Romance tropes"
+        : "Everything in Expanded, plus the modern genre, blurbs and recommended reading";
+    }
+  });
   document.querySelectorAll("#views button").forEach(b => b.setAttribute("aria-pressed", b.dataset.view === state.view));
 }
 // The URL query string mirrors every setting, so a copied link opens exactly this view:
@@ -718,7 +759,7 @@ function readUrl() {
   document.getElementById("dir").value = state.dir;
   document.getElementById("showWorks").checked = state.showWorks;
   state.focus = q.get("focus") || hFocus || null;
-  setDataset(window.DATASETS[ds] ? ds : "founders", size === "expanded" ? "expanded" : "small");
+  setDataset(window.DATASETS[ds] ? ds : "founders", ["expanded", "xxl"].includes(size) ? size : "small");
 }
 
 // ---------- controls ----------
