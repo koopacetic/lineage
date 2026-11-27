@@ -4,6 +4,7 @@
 // window.DATASETS[key] = {
 //   title:    "Shown in the dataset toggle",
 //   concepts: true?,            // nodes are tropes/genres rather than people (changes wording + dates)
+//   books:    false?,           // works aren't books (e.g. music): side panel omits Goodreads links
 //   groups:   [{ key, label, fill, stroke, until? }],   // colour groups; `until` = floruit cutoff year
 //   ticks:    [year, ...],      // timeline column boundaries (ascending; uneven spacing is fine)
 //   gap:      { from, to, note } | null,   // a stretch to shade + annotate on the timeline
@@ -23,6 +24,8 @@
 //
 // Optional node fields (shown in the side panel when the node is focused):
 //   blurb:   one or two sentences of context
+//   wiki:    exact English Wikipedia article title, when looking up `name` finds the wrong page
+//            (the panel fetches a life summary + article link from Wikipedia at view time)
 //   reads:   [[label, title], ...]  recommended reading, best first (replaces `works` in the panel)
 //   tropes:  [ids in the tropes dataset]   — on romance authors; rendered as cross-links
 //   authors: [ids in the romance dataset]  — on tropes; rendered as cross-links

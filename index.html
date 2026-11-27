@@ -45,6 +45,7 @@
   .ds button[aria-pressed="true"] { background: var(--accent); color: #fff; }
   .controls button, .controls select { font: inherit; padding: 4px 9px; border: 1px solid var(--line); background: var(--panel); border-radius: 6px; cursor: pointer; color: var(--ink); }
   .controls button:disabled { opacity: .35; cursor: default; }
+  #back:disabled { opacity: .4; cursor: default; }
   .stepper { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 6px; }
   .stepper button { border: 0 !important; padding: 2px 8px !important; font-size: 12px !important; }
   .stepper output { min-width: 26px; text-align: center; font-variant-numeric: tabular-nums; font-weight: 600; }
@@ -78,6 +79,12 @@
   aside ul.reads { list-style: none; padding: 0; margin: 0; }
   aside ul.reads li { padding: 3px 0; border-bottom: 1px dashed var(--line); font-style: italic; }
   aside ul.reads .rk { display: block; font-style: normal; font-size: 11px; color: var(--muted); }
+  aside .life { margin: 8px 0 0; color: var(--works); font-size: 13px; }
+  aside .life.loading { color: var(--muted); font-style: italic; }
+  aside .extlinks { margin: 6px 0 0; font-size: 12px; }
+  aside .extlinks a, aside .bl a { font-weight: 400; font-style: normal; font-size: 11px; color: var(--muted); margin-right: 8px; white-space: nowrap; }
+  aside .bl { display: inline-block; margin-left: 6px; }
+  aside .workslist li { padding: 2px 0; }
   .kind { font-size: 10px; padding: 1px 5px; border-radius: 4px; margin-left: 4px; color: #fff; vertical-align: 1px; white-space: nowrap; }
   :root[data-theme="dark"] .kind { color: #111; }
   :root[data-theme="dark"] #stage, :root[data-theme="dark"] aside { scrollbar-color: #3f3f46 #1c1c21; }
@@ -107,15 +114,20 @@
     .seg button { padding: 3px 8px; white-space: nowrap; }
     .controls button, .controls select, #dsSelect { padding: 3px 6px; font-size: 13px; }
     #dsSelect, #pick { flex: 1 1 0; min-width: 0; font: inherit; font-size: 13px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); }
-    .row > .seg, .stepper, #more { flex-shrink: 0; }
+    .row > .seg, .stepper, #more, #back { flex-shrink: 0; }
     .extra { display: none; }
     header.show-more .controls { flex-wrap: wrap; }
     header.show-more .extra { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; width: 100%; }
     #status:empty { display: none; }
     aside { font-size: 13px; }
-    main { grid-template-columns: 1fr; grid-template-rows: 70vh auto; }
-    main { overflow: auto; }
-    aside { border-left: 0; border-top: 1px solid var(--line); }
+    /* Split screen: diagram on top, info pane below; each scrolls on its own. ⇕ enlarges the pane. */
+    main { grid-template-columns: 1fr; grid-template-rows: minmax(0, 42fr) minmax(0, 58fr); }
+    main.pane-big { grid-template-rows: minmax(0, 15fr) minmax(0, 85fr); }
+    aside { border-left: 0; border-top: 1px solid var(--line); padding: 10px 14px 24px; font-size: 14px; position: relative; }
+    #paneSize { display: block; }
+  }
+  #paneSize { display: none; position: sticky; top: -10px; float: right; margin: -4px -6px 0 8px; z-index: 1; font: inherit; font-size: 13px;
+    padding: 3px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); cursor: pointer; }
   }
 </style>
 </head>
@@ -140,6 +152,7 @@
       <button data-view="timeline"><span class="long">Timeline</span><span class="short">Time</span></button>
     </div>
     <label class="lbl wide" for="pick">Focus</label>
+    <button id="back" title="Back to the previously focused node" aria-label="Back" disabled>←<span class="long"> Back</span></button>
     <select id="pick" aria-label="Focus"></select>
     <span class="lbl wide">Depth</span>
     <span class="stepper" title="How many steps of influence to show around the focused node">
@@ -469,6 +482,7 @@ let seq = 0;
 async function render() {
   syncUrl();
   syncDepth();
+  syncBack();
   const text = state.view === "timeline" ? timelineText() : networkText();
   const stage = document.getElementById("stage");
   const my = ++seq;
@@ -621,6 +635,84 @@ window.addEventListener("mousemove", e => {
 });
 window.addEventListener("mouseup", () => { drag = null; stage.classList.remove("dragging"); });
 
+// ---------- Wikipedia / Goodreads ----------
+// Life summaries and book articles are looked up live from the Wikipedia API (cached per session).
+// A node may set `wiki: "Exact article title"` to override the lookup.
+const WIKI_API = "https://en.wikipedia.org/w/api.php";
+const wikiCache = new Map();
+const wikiSearchUrl = q => `https://en.wikipedia.org/wiki/Special:Search?search=${encodeURIComponent(q)}`;
+const goodreadsSearchUrl = q => `https://www.goodreads.com/search?q=${encodeURIComponent(q)}`;
+const goodreadsAuthorUrl = name => `https://www.goodreads.com/search?q=${encodeURIComponent(name)}&search_type=books&search%5Bfield%5D=author`;
+// "Wuthering Heights (1847)" → { title: "Wuthering Heights", by: null }; "Le Morte d'Arthur (Malory, 1485)" → by "Malory".
+function parseBook(s) {
+  const m = String(s).match(/^(.*?)\s*\(([^)]*)\)\s*$/);
+  if (!m) return { title: s.trim(), by: null };
+  const by = m[2].split(",").map(x => x.trim()).filter(x => x && !/^(c\.\s*)?\d{3,4}s?$|^\d+$|^(lost|fragments)$/i.test(x)).join(" ");
+  return { title: m[1].trim() || m[2].trim(), by: m[1].trim() ? by || null : null };
+}
+function bookQuery(work, a) {
+  const { title, by } = parseBook(work);
+  return { title, q: [title, by || (D.concepts ? "" : a.name)].filter(Boolean).join(" ") };
+}
+function bookLinks(work, a) {
+  const { title, q } = bookQuery(work, a);
+  if (!title) return "";
+  const gr = D.books === false ? "" : `<a href="${goodreadsSearchUrl(q)}" target="_blank" rel="noopener">Goodreads</a>`;
+  return `<span class="bl"><a class="bookwiki" data-q="${html(q).replace(/"/g, "&quot;")}" data-t="${html(title).replace(/"/g, "&quot;")}" href="${wikiSearchUrl(q)}" target="_blank" rel="noopener">Wikipedia</a>${gr}</span>`;
+}
+async function wikiQuery(params) {
+  const u = new URL(WIKI_API);
+  Object.entries({ action: "query", format: "json", formatversion: "2", origin: "*", redirects: "1", ...params })
+    .forEach(([k, v]) => u.searchParams.set(k, v));
+  const r = await fetch(u);
+  if (!r.ok) throw new Error(r.status);
+  return (await r.json()).query?.pages || [];
+}
+const summaryProps = { prop: "extracts|pageprops|info", exintro: "1", explaintext: "1", exsentences: "4", inprop: "url", ppprop: "disambiguation" };
+const usable = p => p && !p.missing && !p.invalid && !p.pageprops?.hasOwnProperty("disambiguation") && p.extract;
+// Exact title first; if that's missing or a disambiguation page, take the top search hit.
+function wikiSummary(a) {
+  const key = `${D.concepts ? "c" : "p"}:${a.wiki || a.name}`;
+  if (!wikiCache.has(key)) wikiCache.set(key, (async () => {
+    let [p] = await wikiQuery({ titles: a.wiki || a.name, ...summaryProps });
+    if (!usable(p)) {
+      const hint = D.concepts ? (D.books === false ? " music" : " fiction") : (a.works.length ? " writer" : "");
+      [p] = await wikiQuery({ generator: "search", gsrsearch: a.name + hint, gsrlimit: "1", ...summaryProps });
+    }
+    // Plain-text extracts leave husks like "Homer (; Ancient Greek: …)" where IPA was stripped.
+    const clean = s => s.replace(/\(\s*[;,]\s*/g, "(").replace(/\s*\(\s*\)/g, "").replace(/\s{2,}/g, " ");
+    return usable(p) ? { extract: clean(p.extract), url: p.fullurl } : null;
+  })().catch(() => null));
+  return wikiCache.get(key);
+}
+// Resolve a book to its article only when the top hit's title matches the book title.
+const norm = s => s.toLowerCase().replace(/\s*\(.*?\)\s*/g, " ").replace(/^(the|a|an)\s+/, "").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+function wikiBook(q, title) {
+  const key = "b:" + q;
+  if (!wikiCache.has(key)) wikiCache.set(key, (async () => {
+    const pages = await wikiQuery({ generator: "search", gsrsearch: q, gsrlimit: "3", prop: "info|pageprops", inprop: "url", ppprop: "disambiguation" });
+    const t = norm(title.split(/[:;]/)[0]);
+    const hit = pages.sort((x, y) => x.index - y.index)
+      .find(p => !p.pageprops?.hasOwnProperty("disambiguation") && (norm(p.title) === t || norm(p.title).startsWith(t + " ")));
+    return hit?.fullurl || null;
+  })().catch(() => null));
+  return wikiCache.get(key);
+}
+async function fillWiki(a) {
+  const id = a.id;
+  document.querySelectorAll("#side a.bookwiki").forEach(async el => {
+    const url = await wikiBook(el.dataset.q, el.dataset.t);
+    if (url && el.isConnected) el.href = url;
+  });
+  const s = await wikiSummary(a);
+  if (state.focus !== id) return;
+  const life = document.getElementById("life"), link = document.getElementById("wikiLink");
+  if (!life) return;
+  life.classList.remove("loading");
+  if (s) { life.textContent = s.extract; link.href = s.url; }
+  else life.remove();
+}
+
 // ---------- side panel ----------
 function keyPlayers() {
   const out = {}, inn = {}, reach = {};
@@ -671,27 +763,65 @@ function renderSide() {
       return have.length ? `<h3>${title}</h3><div class="chips">${have.map(id =>
         `<button data-xds="${ds}" data-xid="${id}">${html(fullNode(ds, id).name)}</button>`).join("")}</div>` : "";
     };
+    const bookList = D.concepts ? "" : ` <a href="${goodreadsAuthorUrl(a.name)}" target="_blank" rel="noopener">Full book list ↗</a>`;
     top = `<h2>${html(a.name)}</h2><div class="dates">${lifespan(a)}</div>
+      <p class="life loading" id="life">Loading summary from Wikipedia…</p>
+      <div class="extlinks"><a id="wikiLink" href="${wikiSearchUrl(a.wiki || a.name)}" target="_blank" rel="noopener">Wikipedia ↗</a>${bookList}</div>
       ${a.blurb ? `<p class="blurb">${html(a.blurb)}</p>` : ""}
       ${a.reads?.length ? `<h3>Recommended reading</h3><ul class="reads">${a.reads.map(([k, t]) =>
-          `<li><span class="rk">${html(k)}</span>${html(t)}</li>`).join("")}</ul>`
-        : a.works.length ? `<ol class="workslist">${a.works.map(w => `<li>${html(w)}</li>`).join("")}</ol>` : ""}
+          `<li><span class="rk">${html(k)}</span>${html(t)}${bookLinks(t, a)}</li>`).join("")}</ul>`
+        : a.works.length ? `<ol class="workslist">${a.works.map(w => `<li>${html(w)}${bookLinks(w, a)}</li>`).join("")}</ol>` : ""}
       ${xref("Known for (tropes)", "tropes", a.tropes)}
       ${xref("Key authors", "romance", a.authors)}
       <h3>${W.up} (${ins.length})</h3><ul class="links">${ins.map(l => row(l, l[0])).join("") || "<li class='note'>—</li>"}</ul>
       <h3>${W.down} (${outs.length})</h3><ul class="links">${outs.map(l => row(l, l[1])).join("") || "<li class='note'>—</li>"}</ul>
       <details><summary><h3 style="display:inline">Key players</h3></summary>${keyPlayers()}</details>`;
   }
-  side.innerHTML = top + legend;
+  const big = document.querySelector("main").classList.contains("pane-big");
+  side.innerHTML = `<button id="paneSize" aria-label="${big ? "Shrink" : "Enlarge"} info pane">${big ? "▼ Smaller" : "▲ Larger"}</button>` + top + legend;
+  side.scrollTop = 0;
+  side.querySelector("#paneSize").onclick = e => {
+    const nowBig = document.querySelector("main").classList.toggle("pane-big");
+    e.currentTarget.textContent = nowBig ? "▼ Smaller" : "▲ Larger";
+    e.currentTarget.setAttribute("aria-label", `${nowBig ? "Shrink" : "Enlarge"} info pane`);
+  };
+  if (state.focus) fillWiki(byId[state.focus]);
   side.querySelectorAll("[data-id]").forEach(x => x.addEventListener("click", () => select(x.dataset.id)));
   side.querySelectorAll("[data-xds]").forEach(x => x.addEventListener("click", () => {
+    remember();
     setDataset(x.dataset.xds, "xxl");
-    select(x.dataset.xid);
+    select(x.dataset.xid, false);
   }));
 }
 
 // ---------- state changes ----------
-function select(id) {
+// Back history: snapshots of previously focused nodes (with their dataset, for cross-dataset jumps).
+const backStack = [];
+function remember() {
+  if (!state.focus) return;
+  const top = backStack.at(-1);
+  if (top && top.dataset === state.dataset && top.focus === state.focus) return;
+  backStack.push({ dataset: state.dataset, size: state.size, focus: state.focus });
+  if (backStack.length > 100) backStack.shift();
+}
+function syncBack() {
+  const b = document.getElementById("back"), top = backStack.at(-1);
+  b.disabled = !top;
+  b.title = top ? `Back to ${fullNode(top.dataset, top.focus)?.name ?? top.focus}` : "Back to the previously focused node";
+}
+function goBack() {
+  while (backStack.length) {
+    const snap = backStack.pop();
+    if (snap.dataset !== state.dataset || snap.size !== state.size) setDataset(snap.dataset, snap.size);
+    if (!byId[snap.focus]) continue;   // node no longer exists at this size
+    state.focus = snap.focus;
+    document.getElementById("pick").value = snap.focus;
+    return render();
+  }
+  render();
+}
+function select(id, record = true) {
+  if (record && id !== state.focus) remember();
   state.focus = id;
   document.getElementById("pick").value = id || "";
   render();
@@ -710,7 +840,7 @@ function setDataset(key, size = state.size) {
   if (!byId[state.focus]) state.focus = null;
   const pick = document.getElementById("pick");
   pick.innerHTML = `<option value="">— everyone —</option>`;
-  [...D.authors].sort((a, b) => floruit(a) - floruit(b)).forEach(a => pick.add(new Option(`${a.name} (${lifespan(a)})`, a.id)));
+  [...D.authors].sort((a, b) => a.born - b.born || a.name.localeCompare(b.name)).forEach(a => pick.add(new Option(`${a.name} (${lifespan(a)})`, a.id)));
   pick.value = state.focus || "";
   markPressed();
 }
@@ -802,6 +932,11 @@ document.getElementById("depthDown").onclick = () => {
 };
 document.getElementById("showWorks").onchange = e => { state.showWorks = e.target.checked; render(); };
 document.getElementById("clear").onclick = () => select(null);
+document.getElementById("back").onclick = goBack;
+// Alt+← also goes back (matches browser back without leaving the page).
+window.addEventListener("keydown", e => {
+  if (e.altKey && e.key === "ArrowLeft" && backStack.length) { e.preventDefault(); goBack(); }
+});
 document.getElementById("fit").onclick = fit;
 document.getElementById("zoomIn").onclick = () => zoomCentre(1.2);
 document.getElementById("zoomOut").onclick = () => zoomCentre(1 / 1.2);

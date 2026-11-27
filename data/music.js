@@ -3,6 +3,7 @@
 (window.DATASETS ||= {}).music = {
   title: "Modern music",
   concepts: true,
+  books: false,               // works are recordings, not books: no Goodreads links
   groups: [
     { key: "roots",      label: "Roots & sacred",       fill: "#e7e5e4", stroke: "#78716c" },
     { key: "jazzblues",  label: "Blues & jazz",         fill: "#dbeafe", stroke: "#3b82f6" },
