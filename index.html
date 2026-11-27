@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Lineage</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
 <script>
   // Apply the saved/system theme before first paint.
   (function () {
@@ -124,9 +125,9 @@
     main { grid-template-columns: 1fr; grid-template-rows: minmax(0, 42fr) minmax(0, 58fr); }
     main.pane-big { grid-template-rows: minmax(0, 15fr) minmax(0, 85fr); }
     aside { border-left: 0; border-top: 1px solid var(--line); padding: 10px 14px 24px; font-size: 14px; position: relative; }
-    #paneSize { display: block; }
+    body aside #paneSize { display: block; }
   }
-  #paneSize { display: none; position: sticky; top: -10px; float: right; margin: -4px -6px 0 8px; z-index: 1; font: inherit; font-size: 13px;
+  aside #paneSize { display: none; position: sticky; top: -10px; float: right; margin: -4px -6px 0 8px; z-index: 1; font: inherit; font-size: 13px;
     padding: 3px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); cursor: pointer; }
   }
 </style>
@@ -680,7 +681,7 @@ function wikiSummary(a) {
       [p] = await wikiQuery({ generator: "search", gsrsearch: a.name + hint, gsrlimit: "1", ...summaryProps });
     }
     // Plain-text extracts leave husks like "Homer (; Ancient Greek: …)" where IPA was stripped.
-    const clean = s => s.replace(/\(\s*[;,]\s*/g, "(").replace(/\s*\(\s*\)/g, "").replace(/\s{2,}/g, " ");
+    const clean = s => s.replace(/\(\s*[^\s;()\d]+-[^\s;()\d]+;\s*/g, "(").replace(/\(\s*[;,]\s*/g, "(").replace(/\s*\(\s*\)/g, "").replace(/\s{2,}/g, " ");
     return usable(p) ? { extract: clean(p.extract), url: p.fullurl } : null;
   })().catch(() => null));
   return wikiCache.get(key);
