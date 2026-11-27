@@ -121,15 +121,25 @@
     header.show-more .extra { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; width: 100%; }
     #status:empty { display: none; }
     aside { font-size: 13px; }
-    /* Split screen: diagram on top, info pane below; each scrolls on its own. ⇕ enlarges the pane. */
-    main { grid-template-columns: 1fr; grid-template-rows: minmax(0, 42fr) minmax(0, 58fr); }
-    main.pane-big { grid-template-rows: minmax(0, 15fr) minmax(0, 85fr); }
-    aside { border-left: 0; border-top: 1px solid var(--line); padding: 10px 14px 24px; font-size: 14px; position: relative; }
-    body aside #paneSize { display: block; }
+    /* Header slides up out of the way behind its caret bar. */
+    header { max-height: 60vh; overflow: hidden; transition: max-height .25s ease, padding .25s ease; }
+    body.hdr-hidden header { max-height: 0; padding-top: 0; padding-bottom: 0; border-bottom: 0; }
+    /* Split screen: diagram on top, caret bar, info pane below; each scrolls on its own.
+       Pane sizes: small (default) / large / hidden (just the caret bar). */
+    main { grid-template-columns: 1fr; grid-template-rows: minmax(0, 42fr) auto minmax(0, 58fr); transition: grid-template-rows .25s ease; }
+    main.pane-large { grid-template-rows: minmax(0, 12fr) auto minmax(0, 88fr); }
+    main.pane-hidden { grid-template-rows: minmax(0, 1fr) auto 0fr; }
+    main.pane-hidden aside { visibility: hidden; padding: 0; border: 0; }
+    aside { border-left: 0; padding: 8px 14px 24px; font-size: 14px; }
+    body .caretbar { display: flex; }
   }
-  aside #paneSize { display: none; position: sticky; top: -10px; float: right; margin: -4px -6px 0 8px; z-index: 1; font: inherit; font-size: 13px;
-    padding: 3px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); cursor: pointer; }
-  }
+  .caretbar { display: none; justify-content: center; gap: 4px; background: var(--panel); border-bottom: 1px solid var(--line); }
+  #paneCarets { border-top: 1px solid var(--line); border-bottom: 0; }
+  .caretbar button { font: inherit; width: 64px; height: 22px; padding: 0; border: 0; background: transparent; color: var(--muted); cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; }
+  .caretbar button:active { color: var(--ink); }
+  .caretbar button[hidden] { display: none; }
+  .caretbar svg { width: 18px; height: 10px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
 </style>
 </head>
 <body>
@@ -176,10 +186,14 @@
     <span id="status"></span>
   </div>
 </header>
+<div class="caretbar" id="hdrCarets"><button id="hdrToggle" aria-label="Hide controls" aria-expanded="true"><svg viewBox="0 0 18 10" aria-hidden="true"><path d="M2 8.5 9 1.5l7 7"/></svg></button></div>
 <main>
   <div class="stagewrap">
     <div id="stage"></div>
     <div id="toast" role="status"></div>
+  </div>
+  <div class="caretbar" id="paneCarets">
+    <button id="paneUp" aria-label="Enlarge info panel"><svg viewBox="0 0 18 10" aria-hidden="true"><path d="M2 8.5 9 1.5l7 7"/></svg></button><button id="paneDown" aria-label="Shrink info panel"><svg viewBox="0 0 18 10" aria-hidden="true"><path d="M2 1.5 9 8.5l7-7"/></svg></button>
   </div>
   <aside id="side"></aside>
 </main>
@@ -778,14 +792,8 @@ function renderSide() {
       <h3>${W.down} (${outs.length})</h3><ul class="links">${outs.map(l => row(l, l[1])).join("") || "<li class='note'>—</li>"}</ul>
       <details><summary><h3 style="display:inline">Key players</h3></summary>${keyPlayers()}</details>`;
   }
-  const big = document.querySelector("main").classList.contains("pane-big");
-  side.innerHTML = `<button id="paneSize" aria-label="${big ? "Shrink" : "Enlarge"} info pane">${big ? "▼ Smaller" : "▲ Larger"}</button>` + top + legend;
+  side.innerHTML = top + legend;
   side.scrollTop = 0;
-  side.querySelector("#paneSize").onclick = e => {
-    const nowBig = document.querySelector("main").classList.toggle("pane-big");
-    e.currentTarget.textContent = nowBig ? "▼ Smaller" : "▲ Larger";
-    e.currentTarget.setAttribute("aria-label", `${nowBig ? "Shrink" : "Enlarge"} info pane`);
-  };
   if (state.focus) fillWiki(byId[state.focus]);
   side.querySelectorAll("[data-id]").forEach(x => x.addEventListener("click", () => select(x.dataset.id)));
   side.querySelectorAll("[data-xds]").forEach(x => x.addEventListener("click", () => {
@@ -913,6 +921,27 @@ for (const [name, keys] of [["People", PEOPLE], ["Concepts", CONCEPTS]]) {
   dsSelect.append(og);
 }
 dsSelect.onchange = e => { setDataset(e.target.value); render(); };
+// ---------- phone carets: hide the header; size the info pane (hidden / small / large) ----------
+const hdrToggle = document.getElementById("hdrToggle");
+hdrToggle.onclick = () => {
+  const hidden = document.body.classList.toggle("hdr-hidden");
+  hdrToggle.innerHTML = hidden ? `<svg viewBox="0 0 18 10" aria-hidden="true"><path d="M2 1.5 9 8.5l7-7"/></svg>` : `<svg viewBox="0 0 18 10" aria-hidden="true"><path d="M2 8.5 9 1.5l7 7"/></svg>`;
+  hdrToggle.setAttribute("aria-label", hidden ? "Show controls" : "Hide controls");
+  hdrToggle.setAttribute("aria-expanded", !hidden);
+};
+const PANE_SIZES = ["hidden", "small", "large"];
+let paneSize = "small";
+function setPane(size) {
+  paneSize = size;
+  const main = document.querySelector("main");
+  main.classList.toggle("pane-hidden", size === "hidden");
+  main.classList.toggle("pane-large", size === "large");
+  document.getElementById("paneUp").hidden = size === "large";
+  document.getElementById("paneDown").hidden = size === "hidden";
+}
+document.getElementById("paneUp").onclick = () => setPane(PANE_SIZES[PANE_SIZES.indexOf(paneSize) + 1]);
+document.getElementById("paneDown").onclick = () => setPane(PANE_SIZES[PANE_SIZES.indexOf(paneSize) - 1]);
+
 document.getElementById("more").onclick = e => {
   const open = document.querySelector("header").classList.toggle("show-more");
   e.currentTarget.setAttribute("aria-expanded", open);
